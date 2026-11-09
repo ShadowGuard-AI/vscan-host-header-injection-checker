@@ -23,7 +23,7 @@ def is_valid_url(url):
     """
     try:
         result = urlparse(url)
-        return all([result.scheme, result.netloc])
+        return result.scheme.lower() in ("http", "https") and bool(result.netloc)
     except:
         return False
 
@@ -66,14 +66,17 @@ def check_host_header_injection(url, malicious_host):
         # The request URL itself is never evidence: with redirects
         # disabled, response.url is the URL that was requested.
 
+        # Host names are case-insensitive and servers commonly normalize
+        # them to lowercase, so reflection comparisons are case-insensitive.
+        needle = malicious_host.lower()
         location = response.headers.get('Location', '')
-        if malicious_host in location and malicious_host not in baseline_location:
+        if needle and needle in location.lower() and needle not in baseline_location.lower():
             print("Possible Host Header Injection vulnerability found. Redirected to malicious host in Location header.")
             return True
 
         # Decoding with ignore drops the bytes that do not fit UTF-8. A reflection written in another encoding, or split by an invalid byte, can be present in the raw response and still never appear in the string I search.
         body = response.content.decode('utf-8', 'ignore')
-        if malicious_host in body and malicious_host not in baseline_body:
+        if needle and needle in body.lower() and needle not in baseline_body.lower():
             print(f"Possible Host Header Injection vulnerability found. Malicious host reflected in the response body.")
             return True
 
